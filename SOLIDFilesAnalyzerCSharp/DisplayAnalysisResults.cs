@@ -1,58 +1,57 @@
-﻿using GroupDocs.Metadata;
-using GroupDocs.Metadata.Common;
-using GroupDocs.Metadata.Tagging;
-using SOLIDFilesAnalyzerCSharp.Models;
+﻿using SOLIDFilesAnalyzerCSharp.AnalyseFiles.ReadMP3Tag;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Linq.Expressions;
 using System.Windows.Forms;
-using static System.Net.WebRequestMethods;
+using TagLib;
+using File = TagLib.File;
+using FileTypes = TagLib.FileTypes;
 
 namespace SOLIDFilesAnalyzerCSharp
 {
   public partial class DisplayAnalysisResults : Form
   {
+    Mp3Tag mp3Tag;
+    List<Mp3Tag> mp3Tags;
+    Mp3Reader? mp3Reader;
+    List<File> fullPropFiles;
+    Properties properties;
+    Tag tag;
+
     public DisplayAnalysisResults()
     {
+      mp3Tag = new Mp3Tag();
+      mp3Tags = new List<Mp3Tag>();
+      fullPropFiles = new List<File>();
+
       InitializeComponent();
       InitializeBackgroundWorker();
     }
 
     private void AnalyseFilesProperties(List<FileInfo> files, BackgroundWorker worker, DoWorkEventArgs e)
     {
+      List<FileInfo> notKnownExtension = new List<FileInfo>();
       foreach (FileInfo file in files)
       {
-        using (Metadata metadata = new Metadata(file.FullName))
+        if (file.Extension == ".mp3")
         {
-          if (metadata.FileFormat != FileFormat.Unknown && !metadata.GetDocumentInfo().IsEncrypted)
-          {
-            // fetch all metadata properties that fall into a particular category
-            var properties = metadata.FindProperties(p => p.Tags.Any(t => t.Category == Tags.Content));
-            Console.WriteLine("The metadata properties describing some characteristics of the file content: title, keywords, language, etc.");
-            foreach (var property in properties)
-            {
-              Console.WriteLine("{0} = {1}", property.Name, property.Value);
-            }
+          mp3Reader = new Mp3Reader(file.FullName);
+          mp3Tags.Add(mp3Reader.GetTag());
+        }
 
-            // fetch all properties having a specific type and value
-            var year = DateTime.Today.Year;
-            properties = metadata.FindProperties(p => p.Value.Type == MetadataPropertyType.DateTime &&
-            p.Value.ToStruct(DateTime.MinValue).Year == year);
-
-            Console.WriteLine("All datetime properties with the year value equal to the current year");
-            foreach (var property in properties)
-            {
-              Console.WriteLine("{0} = {1}", property.Name, property.Value);
-            }
-          }
+        try
+        {
+          var tfile = File.Create(file.FullName);
+          fullPropFiles.Add(tfile);
+        }
+        catch (UnsupportedFormatException)
+        {
+          notKnownExtension.Add(file);
         }
       }
+      var d = fullPropFiles;
     }
 
     public void RetrieveMetadata(List<FileInfo> files)
@@ -83,7 +82,7 @@ namespace SOLIDFilesAnalyzerCSharp
 
     private void backgroundWorkerAnalyseFilesProperties_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
     {
-      //dataGridViewDetectedFiles.DataSource = rfs.AllFiles.ToArray();
+      dataGridViewDisplayAnalysisResults.DataSource = fullPropFiles.ToArray();
       //buttonScan.Enabled = true;
       //buttonSearchFolder.Enabled = true;
     }

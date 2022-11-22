@@ -36,7 +36,5 @@ namespace SOLIDFilesAnalyzerCSharp.Models
       searchLocation = new FilesLocation();
       startSearchOn = new DirectoryInfo(DriveInfo.GetDrives()[0].Name);
     }
-
-
   }
 }
